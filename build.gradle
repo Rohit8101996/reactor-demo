@@ -1,0 +1,47 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.rohitbaranwal'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	implementation("io.projectreactor:reactor-core:3.7.2")
+
+	//log - logback
+	implementation("ch.qos.logback:logback-classic:1.5.12")
+
+	//reactor-debug-agent
+	implementation('io.projectreactor:reactor-tools:3.7.2')
+
+	//lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+
+	//testing
+	testImplementation("io.projectreactor:reactor-test:3.7.2")
+	testImplementation('org.junit.jupiter:junit-jupiter:5.5.1')
+	testImplementation("org.mockito:mockito-core:3.2.4")
+	testImplementation("org.mockito:mockito-junit-jupiter:3.2.4")
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
