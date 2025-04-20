@@ -1,5 +1,6 @@
 package com.rohitbaranwal.projectreactor.first;
 
+import com.rohitbaranwal.projectreactor.exception.ReactorException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
@@ -44,6 +45,16 @@ public class FluxAndMonoGeneratorServiceTest {
   void namesFlux_MapThenFilterThanMap() {
 
     var namesFlux = fluxAndMonoGeneratorService.namesFlux_MapThenfilterThenMap(3);
+
+    StepVerifier.create(namesFlux)
+        .expectNext("4-ALEX", "5-CHLOE")
+        .verifyComplete();
+  }
+
+  @Test
+  void namesFlux_MapThenfilterThenMap_doCallBackMethods() {
+    //Testing doOnNext
+    var namesFlux = fluxAndMonoGeneratorService.namesFlux_MapThenfilterThenMap_doCallBackMethods(3);
 
     StepVerifier.create(namesFlux)
         .expectNext("4-ALEX", "5-CHLOE")
@@ -247,4 +258,136 @@ public class FluxAndMonoGeneratorServiceTest {
         .expectNext("AB")
         .verifyComplete();
   }
+
+  @Test
+  public void exception_flux() {
+    var value = fluxAndMonoGeneratorService.exception_flux();
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C")
+        .expectError(RuntimeException.class)
+        .verify();
+    //This means subscription is cancelled between
+    //subscriber and publisher if any error is recieved and also stepverifier we could assert anything post error is encountered
+  }
+
+  @Test
+  public void exception_flux_1() {
+    var value = fluxAndMonoGeneratorService.exception_flux();
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C")
+        .expectError()//asserting without exception also works
+        .verify();
+  }
+
+  @Test
+  public void exception_flux_2() {
+    var value = fluxAndMonoGeneratorService.exception_flux();
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C")
+        .expectErrorMessage("Unexpected Error Occured")//asserting with exception message
+        .verify();
+  }
+
+  @Test
+  public void explore_onErrorReturn() {
+    var value = fluxAndMonoGeneratorService.explore_onErrorReturn();
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C", "D")
+        .verifyComplete();
+  }
+
+  @Test
+  public void explore_onErrorResume() {
+
+    var ex = new IllegalStateException("Not a valid State");
+
+    var value = fluxAndMonoGeneratorService.explore_onErrorResume(ex);
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C", "D", "E", "F")
+        .verifyComplete();
+  }
+
+  @Test
+  public void explore_onErrorResume_1() {
+
+    var ex = new RuntimeException("some exception");
+
+    var value = fluxAndMonoGeneratorService.explore_onErrorResume(ex);
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C")
+        .expectErrorMessage("some exception")
+        .verify();
+  }
+
+  @Test
+  public void explore_onErrorContinue() {
+
+    var value = fluxAndMonoGeneratorService.explore_onErrorContinue();
+
+    StepVerifier.create(value)
+        .expectNext("A", "C", "D")
+        .verifyComplete();
+  }
+
+  @Test
+  public void explore_onErrorMap() {
+
+    var value = fluxAndMonoGeneratorService.explore_onErrorMap();
+
+    StepVerifier.create(value)
+        .expectNext("A")
+        .expectError(ReactorException.class)
+        .verify();
+  }
+
+  @Test
+  public void explore_doOnError() {
+
+    var value = fluxAndMonoGeneratorService.explore_doOnError();
+
+    StepVerifier.create(value)
+        .expectNext("A", "B", "C")
+        .expectError(IllegalStateException.class)
+        .verify();
+  }
+
+  @Test
+  public void explore_mono_onErrorReturn() {
+
+    var value = fluxAndMonoGeneratorService.explore_mono_onErrorReturn();
+
+    StepVerifier.create(value)
+        .expectNext("abc")
+        .verifyComplete();
+  }
+
+  @Test
+  public void exception_mono_onErrorContinue_1() {
+
+    String inputString = "reactor";
+
+    var value = fluxAndMonoGeneratorService.exception_mono_onErrorContinue(inputString);
+
+    StepVerifier.create(value)
+        .expectNext(inputString)
+        .verifyComplete();
+  }
+
+  @Test
+  public void exception_mono_onErrorContinue_2() {
+
+    String inputString = "abc";
+
+    var value = fluxAndMonoGeneratorService.exception_mono_onErrorContinue(inputString);
+
+    StepVerifier.create(value)
+        .verifyComplete();
+  }
+
 }

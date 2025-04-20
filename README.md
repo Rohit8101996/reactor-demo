@@ -157,3 +157,53 @@ Ease of Use:
 
 ![img_7.png](img_7.png)
 
+<h3> Exception In Reactive Stream </h3>
+
+<div>**Any exception will terminate reactive stream</div>
+
+Two Categories of Operator
+
+Category 1 : Recover from an Exception
+Category 2 : Take an action on exception and re-throw the exception
+
+Recover from an Exception
+
+1. onErrorReturn() -> catches the exception, return default value
+2. onErrorResume() -> catches the exception, return recovery flux
+3. onErrorContinue() -> catches the exception, drop elements which caused exception, continue
+   emitting remaining elements
+
+Take an action on exception and rethrow the exception
+
+1. onErrorMap() -> catches the exception, transform exception to custom/business exception, once
+   exception encountered, no elements are further emitted
+2. doOnError() -> catches the exception, takes action when exception occurs, side effect operator
+   does not modify reactive stream output, error still gets propagated to caller
+
+onErrorReturn()
+-> catch the exception
+-> This also provides singe default value as a fallback value
+
+retry()
+-> use this operator to retry failed exception
+-> code interacts with extenal systems through network. Ex - RestFul API Calls, DB Calls
+
+retry()-> retry failed exception indefinetely
+retry(N)-> retry failed exception N number of times, N is a long value
+
+retryWhen()-> more advanced
+conditionally perform retry on specific exceptions
+
+repeat()
+--> repeat an existing sequence
+--> this operator gets invoked after onCompletion() event from existing sequence
+--> Use it when you have to subscribe to same publisher again
+--> This operator works as long as no exception is thrown
+
+repeat() --> subscribes to operator indefinitely
+repeat(N) --> subscribes to the publisher N times
+
+
+
+
+

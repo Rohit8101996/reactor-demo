@@ -1,13 +1,15 @@
 package com.rohitbaranwal.projectreactor.first;
 
+import com.rohitbaranwal.projectreactor.exception.ReactorException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 public class FluxAndMonoGeneratorService {
 
   public Flux<String> namesFlux() {
@@ -36,17 +38,26 @@ public class FluxAndMonoGeneratorService {
         .log();
   }
 
-  public Flux<String> namesFlux_MapThenfilterThenMap_doOnNextCallBack(int strLen) {
-    return Flux.fromIterable(List.of("alex", "ben", "chloe"))
-        .map(String::toUpperCase)
-        .filter(s -> s.length() > strLen)
-        .map(s -> s.length() + "-" + s)
-        //used for metric, auditing, logging
-        //accepts consumer has no output
-        .doOnNext(name -> {
-          System.out.println("Name is: " + name);
-        })
-        .log();
+  public static void main(String[] args) {
+    FluxAndMonoGeneratorService fluxAndMonoGeneratorService = new FluxAndMonoGeneratorService();
+
+    /* namesFlux is a data publisher which is then subscribed
+      - To understand what happened behind added log as chaining in line number 10
+      - first request is subscribed to publisher (subscription object is returned back)
+      - then request is sent for unbound data available f(i.e., it's asking the Publisher to emit all available items without any limit.)
+      - then events are recieved 1 by 1 using onNext() function
+      - when all events are sent (each data in list here refers as event , then onComplete() signal is sent back
+     */
+    fluxAndMonoGeneratorService.namesFlux()
+        .subscribe(name ->
+            System.out.println("Name is : " + name)
+        );
+
+    fluxAndMonoGeneratorService.namesMono()
+        .subscribe(name ->
+            System.out.println("Mono Name is: " + name)
+        );
+
   }
 
   public Flux<String> namesFlux_mapThenfilter_thenFlatMap(int strLen) {
@@ -233,6 +244,123 @@ public class FluxAndMonoGeneratorService {
     return aMono.zipWith(bMono).map(t2 -> t2.getT1() + t2.getT2()).log();
   }
 
+  public Flux<String> namesFlux_MapThenfilterThenMap_doCallBackMethods(int strLen) {
+    return Flux.fromIterable(List.of("alex", "ben", "chloe"))
+        .map(String::toUpperCase)
+        .filter(s -> s.length() > strLen)
+        .map(s -> s.length() + "-" + s)
+        //used for metric, auditing, logging
+        //accepts consumer has no output
+        .doOnNext(name -> {
+          //this are also called side effect operators since they dont change original data source
+          //example updating name to lower case
+          //but on test we will still see upper caps
+          System.out.println("Name is: " + name.toLowerCase());
+        })
+        .doOnSubscribe(s -> {
+          //This will be printed once since StepVerifier subscribes it once at first then elements are emitted
+          System.out.println("Subscription is: " + s);
+        })
+        .doOnComplete(() -> {
+          //this executes runnable , no INPUTS executes on complete
+          System.out.println("Inside the complete callback");
+        })
+        //this is invoked at end irrespective reactive sequence completed success or failed
+        //accepts consumer with type of SIGNALTYPE
+        .doFinally(signalType -> {
+          System.out.println("Inside finally: "
+              + signalType);//this says last event that got emitted out of reactive stream
+        })
+        .log();//this becomes obsulute after use of doOnNext()
+  }
+
+  public Flux<String> exception_flux() {
+
+    return Flux.just("A", "B", "C")
+        .concatWith(Flux.error(new RuntimeException("Unexpected Error Occured")))
+        .concatWith(Flux.just("D"))
+        .log();
+  }
+
+  public Flux<String> explore_onErrorReturn() {
+
+    return Flux.just("A", "B", "C")
+        .concatWith(Flux.error(new IllegalStateException("Unexpected Error Occured")))
+        .onErrorReturn("D") //HANDLE EXCEPTION AND RETURN DEFAULT VALUE WITH INITIAL VALUES
+        .log();
+  }
+
+  public Flux<String> explore_onErrorResume(Exception e) {
+
+    var recoveryFlux = Flux.just("D", "E", "F");
+
+    return Flux.just("A", "B", "C")
+        .concatWith(Flux.error(e))
+        .onErrorResume(ex -> {
+          log.error("Exception is : " + ex);
+          if (ex instanceof IllegalStateException) {
+            return recoveryFlux; // ON FAILURE HANDLE WITH A PUBLISHER (FLUX )
+          } else {
+            return Flux.error(ex);
+          }
+        })
+        .log();
+  }
+
+  public Flux<String> explore_onErrorContinue() {
+
+    return Flux.just("A", "B", "C")
+        .map(name -> {
+          if (name.equals("B")) {
+            throw new IllegalStateException("Exception Occured");
+          }
+          return name;
+        })
+        .concatWith(Flux.just("D")) //This will too get emitted even after excpetion is thrown
+        .onErrorContinue((ex, name) -> {
+          log.error("Exception is : ", ex);
+          log.error("Element caused exception: {}", name);
+        }) //REJECT ELEMENTS WHICH CAUSED EXCPETION AND THEN CONTINUE
+        .log();
+  }
+
+  public Flux<String> explore_onErrorMap() {
+
+    return Flux.just("A", "B", "C")
+        .map(name -> {
+          if (name.equals("B")) {
+            throw new IllegalStateException("Exception Occured");
+          }
+          return name;
+        })
+        .concatWith(Flux.just("D"))
+        .onErrorMap((ex) -> {
+          log.error("Exception is : ", ex);
+          return new ReactorException(ex, ex.getMessage());
+        })
+        .log();
+  }
+
+  public Flux<String> explore_doOnError() {
+
+    return Flux.just("A", "B", "C")
+        .concatWith(Flux.error(new IllegalStateException("Unexpected Error Occured")))
+        .concatWith(Flux.just("D")) //Workflow didnt reached here since exception was recieved
+        .doOnError(ex -> {
+          log.error("Exception occured: ", ex);
+        })
+        .log();
+  }
+
+  public Mono<Object> explore_mono_onErrorReturn() {
+
+    return Mono.just("A")
+        .map(value -> {
+          throw new RuntimeException("Exception Occured");
+        })
+        .onErrorReturn("abc")
+        .log();
+  }
 
   public Flux<String> convertStringToChar(String name) {
     var charArray = name.split("");
@@ -277,26 +405,21 @@ public class FluxAndMonoGeneratorService {
     return Mono.just(List.of(charArray));
   }
 
-  public static void main(String[] args) {
-      FluxAndMonoGeneratorService fluxAndMonoGeneratorService = new FluxAndMonoGeneratorService();
+  public Mono<String> exception_mono_onErrorContinue(String input) {
 
-    /* namesFlux is a data publisher which is then subscribed
-      - To understand what happened behind added log as chaining in line number 10
-      - first request is subscribed to publisher (subscription object is returned back)
-      - then request is sent for unbound data available f(i.e., it's asking the Publisher to emit all available items without any limit.)
-      - then events are recieved 1 by 1 using onNext() function
-      - when all events are sent (each data in list here refers as event , then onComplete() signal is sent back
-     */
-      fluxAndMonoGeneratorService.namesFlux()
-          .subscribe(name ->
-              System.out.println("Name is : " + name)
-              );
-
-      fluxAndMonoGeneratorService.namesMono()
-          .subscribe(name ->
-              System.out.println("Mono Name is: " + name)
-          );
-
+    return Mono.just(input)
+        .map(value -> {
+          if (value.equals("abc")) {
+            throw new RuntimeException("Exception Occured");
+          } else {
+            return value;
+          }
+        })
+        .onErrorContinue((ex, value) -> {
+          log.info("Exception Occured", ex);
+          log.info("value is: {}", value);
+        })
+        .log();
   }
 
 }
